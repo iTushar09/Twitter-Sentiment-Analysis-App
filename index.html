@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Twitter Sentiment Analysis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .header h1 {
+        color: #2c3e50;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .header p {
+        color: #666;
+        font-size: 1.1rem;
+      }
+
+      .input-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 15px;
+        margin-bottom: 30px;
+        border-left: 5px solid #667eea;
+      }
+
+      .input-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+
+      textarea,
+      input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+      }
+
+      textarea:focus,
+      input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      .results-section {
+        display: none;
+        margin-top: 30px;
+      }
+
+      .results-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+      }
+
+      .result-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        border-top: 4px solid #667eea;
+      }
+
+      .result-card h3 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-size: 1.3rem;
+      }
+
+      .sentiment-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        margin: 5px;
+      }
+
+      .positive {
+        background: #d4edda;
+        color: #155724;
+      }
+      .negative {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .neutral {
+        background: #d1ecf1;
+        color: #0c5460;
+      }
+
+      .tweets-analysis {
+        grid-column: 1 / -1;
+      }
+
+      .tweet-item {
+        background: #f8f9fa;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+      }
+
+      .tweet-text {
+        margin-bottom: 10px;
+        line-height: 1.5;
+      }
+
+      .tweet-sentiment {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .confidence-bar {
+        width: 100px;
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .confidence-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+      }
+
+      .chart-container {
+        position: relative;
+        height: 300px;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 10px;
+      }
+
+      .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        display: block;
+      }
+
+      .sample-tweets {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+      }
+
+      .sample-tweets h4 {
+        margin-bottom: 15px;
+        color: #2c3e50;
+      }
+
+      .sample-tweet {
+        background: white;
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .sample-tweet:hover {
+        background: #e9ecef;
+      }
+
+      @media (max-width: 768px) {
+        .results-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .button-group {
+          flex-direction: column;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🐦 Twitter Sentiment Analysis</h1>
+        <p>Analyze the emotional tone of tweets using machine learning</p>
+      </div>
+
+      <div class="input-section">
+        <div class="input-group">
+          <label for="tweetInput"
+            >Enter Tweet Text or Multiple Tweets (one per line):</label
+          >
+          <textarea
+            id="tweetInput"
+            placeholder="Type your tweet here... or paste multiple tweets separated by new lines"
+          ></textarea>
+        </div>
+
+        <div class="button-group">
+          <button class="btn-primary" onclick="analyzeSentiment()">
+            🔍 Analyze Sentiment
+          </button>
+          <button class="btn-secondary" onclick="loadSampleTweets()">
+            📝 Load Sample Tweets
+          </button>
+          <button class="btn-success" onclick="clearAll()">🗑️ Clear All</button>
+        </div>
+      </div>
+
+      <div class="sample-tweets">
+        <h4>Click on sample tweets to try:</h4>
+        <div
+          class="sample-tweet"
+          onclick="setSampleTweet('I absolutely love this new feature! It makes everything so much easier 😊')"
+        >
+          "I absolutely love this new feature! It makes everything so much
+          easier 😊"
+        </div>
+        <div
+          class="sample-tweet"
+          onclick="setSampleTweet('This is the worst customer service I have ever experienced. Completely disappointed.')"
+        >
+          "This is the worst customer service I have ever experienced.
+          Completely disappointed."
+        </div>
+        <div
+          class="sample-tweet"
+          onclick="setSampleTweet('The weather today is okay, nothing special.')"
+        >
+          "The weather today is okay, nothing special."
+        </div>
+        <div
+          class="sample-tweet"
+          onclick="setSampleTweet('Amazing concert last night! The energy was incredible 🎵')"
+        >
+          "Amazing concert last night! The energy was incredible 🎵"
+        </div>
+      </div>
+
+      <div id="resultsSection" class="results-section">
+        <div class="results-grid">
+          <div class="result-card">
+            <h3>📊 Overall Sentiment</h3>
+            <div id="overallSentiment"></div>
+            <div class="chart-container">
+              <canvas id="sentimentChart"></canvas>
+            </div>
+          </div>
+
+          <div class="result-card">
+            <h3>📈 Statistics</h3>
+            <div id="sentimentStats" class="stats-grid"></div>
+          </div>
+
+          <div class="result-card tweets-analysis">
+            <h3>🔍 Individual Tweet Analysis</h3>
+            <div id="tweetAnalysis"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Simple sentiment analysis using lexicon-based approach
+      const sentimentLexicon = {
+        // Positive words
+        love: 3,
+        amazing: 3,
+        awesome: 3,
+        fantastic: 3,
+        excellent: 3,
+        great: 2,
+        good: 2,
+        nice: 2,
+        happy: 2,
+        wonderful: 3,
+        brilliant: 3,
+        perfect: 3,
+        best: 3,
+        incredible: 3,
+        outstanding: 3,
+        like: 1,
+        enjoy: 2,
+        pleased: 2,
+        satisfied: 2,
+        beautiful: 2,
+        excited: 2,
+        thrilled: 3,
+        delighted: 3,
+        glad: 2,
+        grateful: 2,
+
+        // Negative words
+        hate: -3,
+        terrible: -3,
+        awful: -3,
+        horrible: -3,
+        worst: -3,
+        bad: -2,
+        poor: -2,
+        sad: -2,
+        angry: -2,
+        disappointed: -2,
+        disgusting: -3,
+        pathetic: -3,
+        useless: -3,
+        annoying: -2,
+        frustrated: -2,
+        dislike: -1,
+        boring: -2,
+        ugly: -2,
+        stupid: -2,
+        ridiculous: -2,
+        worried: -1,
+        concerned: -1,
+        upset: -2,
+        disturbed: -2,
+        troubled: -2,
+
+        // Neutral/modifier words
+        not: -1,
+        never: -1,
+        nothing: -1,
+        nobody: -1,
+        nowhere: -1,
+        very: 1.5,
+        really: 1.3,
+        extremely: 2,
+        absolutely: 1.8,
+        totally: 1.5,
+      };
+
+      const emoticons = {
+        "😊": 2,
+        "😀": 2,
+        "😃": 2,
+        "😄": 2,
+        "😁": 2,
+        "🙂": 1,
+        "😍": 3,
+        "🥰": 3,
+        "😘": 2,
+        "💕": 2,
+        "❤️": 2,
+        "💖": 2,
+        "😢": -2,
+        "😭": -3,
+        "😞": -2,
+        "😔": -2,
+        "😟": -2,
+        "😕": -1,
+        "😤": -2,
+        "😠": -2,
+        "😡": -3,
+        "🤬": -3,
+        "😒": -1,
+        "😐": 0,
+        "😑": 0,
+        "🙄": -1,
+        "😏": 0,
+        "🤔": 0,
+        "😶": 0,
+      };
+
+      let sentimentChart = null;
+
+      function preprocessText(text) {
+        return text
+          .toLowerCase()
+          .replace(
+            /[^\w\s😊😀😃😄😁🙂😍🥰😘💕❤️💖😢😭😞😔😟😕😤😠😡🤬😒😐😑🙄😏🤔😶]/g,
+            " "
+          )
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function analyzeTweetSentiment(text) {
+        const processed = preprocessText(text);
+        const words = processed.split(" ");
+        let score = 0;
+        let wordCount = 0;
+        let matchedWords = [];
+
+        // Analyze words
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          if (sentimentLexicon[word]) {
+            let wordScore = sentimentLexicon[word];
+
+            // Check for negation in previous words
+            if (
+              i > 0 &&
+              (words[i - 1] === "not" ||
+                words[i - 1] === "never" ||
+                words[i - 1] === "no")
+            ) {
+              wordScore *= -1;
+            }
+
+            // Check for intensifiers
+            if (
+              i > 0 &&
+              sentimentLexicon[words[i - 1]] &&
+              sentimentLexicon[words[i - 1]] > 1
+            ) {
+              wordScore *= sentimentLexicon[words[i - 1]];
+            }
+
+            score += wordScore;
+            wordCount++;
+            matchedWords.push({ word, score: wordScore });
+          }
+        }
+
+        // Analyze emoticons
+        for (const [emoticon, value] of Object.entries(emoticons)) {
+          if (text.includes(emoticon)) {
+            score += value;
+            wordCount++;
+            matchedWords.push({ word: emoticon, score: value });
+          }
+        }
+
+        // Normalize score
+        const normalizedScore =
+          wordCount > 0 ? score / Math.sqrt(wordCount) : 0;
+
+        // Determine sentiment
+        let sentiment, confidence;
+        if (normalizedScore > 0.5) {
+          sentiment = "Positive";
+          confidence = Math.min(Math.abs(normalizedScore) * 30, 95);
+        } else if (normalizedScore < -0.5) {
+          sentiment = "Negative";
+          confidence = Math.min(Math.abs(normalizedScore) * 30, 95);
+        } else {
+          sentiment = "Neutral";
+          confidence = Math.max(20, 100 - Math.abs(normalizedScore) * 50);
+        }
+
+        return {
+          sentiment,
+          confidence: Math.round(confidence),
+          score: normalizedScore,
+          rawScore: score,
+          matchedWords,
+          wordCount,
+        };
+      }
+
+      function setSampleTweet(tweet) {
+        document.getElementById("tweetInput").value = tweet;
+      }
+
+      function loadSampleTweets() {
+        const sampleTweets = [
+          "I absolutely love this new feature! It makes everything so much easier 😊",
+          "This is the worst customer service I have ever experienced. Completely disappointed.",
+          "The weather today is okay, nothing special.",
+          "Amazing concert last night! The energy was incredible 🎵",
+          "Can't believe how good this movie was! Best film of the year 🎬",
+          "Traffic is so annoying today 😤",
+          "Just had the most delicious meal at this new restaurant!",
+          "My flight got cancelled again. This is really frustrating.",
+          "Beautiful sunset today 🌅",
+        ].join("\n");
+
+        document.getElementById("tweetInput").value = sampleTweets;
+      }
+
+      function clearAll() {
+        document.getElementById("tweetInput").value = "";
+        document.getElementById("resultsSection").style.display = "none";
+      }
+
+      function analyzeSentiment() {
+        const input = document.getElementById("tweetInput").value.trim();
+        if (!input) {
+          alert("Please enter some text to analyze!");
+          return;
+        }
+
+        const tweets = input.split("\n").filter((tweet) => tweet.trim());
+        const results = tweets.map((tweet) => ({
+          text: tweet.trim(),
+          ...analyzeTweetSentiment(tweet.trim()),
+        }));
+
+        displayResults(results);
+      }
+
+      function displayResults(results) {
+        // Calculate overall statistics
+        const totalTweets = results.length;
+        const positive = results.filter(
+          (r) => r.sentiment === "Positive"
+        ).length;
+        const negative = results.filter(
+          (r) => r.sentiment === "Negative"
+        ).length;
+        const neutral = results.filter((r) => r.sentiment === "Neutral").length;
+
+        const avgConfidence = Math.round(
+          results.reduce((sum, r) => sum + r.confidence, 0) / totalTweets
+        );
+
+        // Determine overall sentiment
+        let overallSentiment;
+        if (positive > negative && positive > neutral) {
+          overallSentiment = "Positive";
+        } else if (negative > positive && negative > neutral) {
+          overallSentiment = "Negative";
+        } else {
+          overallSentiment = "Neutral";
+        }
+
+        // Display overall sentiment
+        document.getElementById("overallSentiment").innerHTML = `
+                <div class="sentiment-badge ${overallSentiment.toLowerCase()}">
+                    ${overallSentiment} (${avgConfidence}% confidence)
+                </div>
+            `;
+
+        // Display statistics
+        document.getElementById("sentimentStats").innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-number">${totalTweets}</span>
+                    Total Tweets
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">${positive}</span>
+                    Positive
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">${negative}</span>
+                    Negative
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">${neutral}</span>
+                    Neutral
+                </div>
+            `;
+
+        // Display individual tweet analysis
+        const tweetAnalysisHTML = results
+          .map(
+            (result) => `
+                <div class="tweet-item">
+                    <div class="tweet-text">"${result.text}"</div>
+                    <div class="tweet-sentiment">
+                        <span class="sentiment-badge ${result.sentiment.toLowerCase()}">
+                            ${result.sentiment}
+                        </span>
+                        <div>
+                            <span>Confidence: ${result.confidence}%</span>
+                            <div class="confidence-bar">
+                                <div class="confidence-fill ${result.sentiment.toLowerCase()}" 
+                                     style="width: ${
+                                       result.confidence
+                                     }%; background: ${
+              result.sentiment === "Positive"
+                ? "#28a745"
+                : result.sentiment === "Negative"
+                ? "#dc3545"
+                : "#6c757d"
+            }"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `
+          )
+          .join("");
+
+        document.getElementById("tweetAnalysis").innerHTML = tweetAnalysisHTML;
+
+        // Create chart
+        createSentimentChart(positive, negative, neutral);
+
+        // Show results
+        document.getElementById("resultsSection").style.display = "block";
+      }
+
+      function createSentimentChart(positive, negative, neutral) {
+        const ctx = document.getElementById("sentimentChart").getContext("2d");
+
+        if (sentimentChart) {
+          sentimentChart.destroy();
+        }
+
+        sentimentChart = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: ["Positive", "Negative", "Neutral"],
+            datasets: [
+              {
+                data: [positive, negative, neutral],
+                backgroundColor: ["#28a745", "#dc3545", "#6c757d"],
+                borderWidth: 2,
+                borderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  padding: 20,
+                  font: {
+                    size: 14,
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Auto-resize textarea
+      document
+        .getElementById("tweetInput")
+        .addEventListener("input", function () {
+          this.style.height = "auto";
+          this.style.height = this.scrollHeight + "px";
+        });
+    </script>
+  </body>
+</html>
